@@ -1,0 +1,370 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+local teleportEnabled = false
+local reachEnabled = false
+local autoClickEnabled = false
+local currentTarget = nil
+local reachDistance = 10
+local guiOpen = true
+local originalSizes = {}
+local reachConnection = nil
+local activeTweens = {}
+
+local gui = player.PlayerGui:FindFirstChild("CombatGui")
+if gui then gui:Destroy() end
+wait(0.1)
+
+gui = Instance.new("ScreenGui")
+gui.Name = "CombatGui"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+local function create(class, props)
+    local obj = Instance.new(class)
+    for k,v in pairs(props) do obj[k] = v end
+    return obj
+end
+
+local openBtn = create("TextButton", {
+    Size = UDim2.new(0,100,0,35), Position = UDim2.new(0.5,-50,0,10),
+    Text = "CLOSE", BackgroundColor3 = Color3.fromRGB(30,30,40),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 14, Parent = gui
+})
+create("UICorner", {CornerRadius = UDim.new(0,8), Parent = openBtn})
+
+local frame = create("Frame", {
+    Size = UDim2.new(0,280,0,280), Position = UDim2.new(0.5,-140,0.5,-140),
+    BackgroundColor3 = Color3.fromRGB(25,25,30), BorderSizePixel = 0, Parent = gui
+})
+create("UICorner", {CornerRadius = UDim.new(0,12), Parent = frame})
+
+local title = create("TextButton", {
+    Size = UDim2.new(1,0,0,35), BackgroundColor3 = Color3.fromRGB(40,40,50),
+    BorderSizePixel = 0, Text = "", AutoButtonColor = false, Parent = frame
+})
+create("UICorner", {CornerRadius = UDim.new(0,12), Parent = title})
+create("TextLabel", {
+    Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "COMBAT MENU",
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 15, Parent = title
+})
+
+local mainTab = create("TextButton", {
+    Size = UDim2.new(0.45,0,0,30), Position = UDim2.new(0.05,0,0,40),
+    Text = "MAIN", BackgroundColor3 = Color3.fromRGB(85,255,85),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0, Parent = frame
+})
+create("UICorner", {CornerRadius = UDim.new(0,6), Parent = mainTab})
+
+local settingsTab = create("TextButton", {
+    Size = UDim2.new(0.45,0,0,30), Position = UDim2.new(0.5,0,0,40),
+    Text = "SETTINGS", BackgroundColor3 = Color3.fromRGB(60,60,70),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0, Parent = frame
+})
+create("UICorner", {CornerRadius = UDim.new(0,6), Parent = settingsTab})
+
+local mainContent = create("Frame", {
+    Size = UDim2.new(1,0,1,-75), Position = UDim2.new(0,0,0,75),
+    BackgroundTransparency = 1, Visible = true, Parent = frame
+})
+
+local teleportBtn = create("TextButton", {
+    Size = UDim2.new(0.8,0,0,45), Position = UDim2.new(0.1,0,0,5),
+    Text = "START TELEPORT", BackgroundColor3 = Color3.fromRGB(255,85,85),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 14, BorderSizePixel = 0, Parent = mainContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,8), Parent = teleportBtn})
+
+create("TextLabel", {
+    Size = UDim2.new(0.8,0,0,20), Position = UDim2.new(0.1,0,0,60),
+    Text = "REACH SCRIPT", BackgroundTransparency = 1,
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, Parent = mainContent
+})
+
+local reachBtn = create("TextButton", {
+    Size = UDim2.new(0.8,0,0,35), Position = UDim2.new(0.1,0,0,85),
+    Text = "OFF", BackgroundColor3 = Color3.fromRGB(255,85,85),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0, Parent = mainContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,6), Parent = reachBtn})
+
+local reachInput = create("TextBox", {
+    Size = UDim2.new(0.8,0,0,30), Position = UDim2.new(0.1,0,0,125),
+    Text = "10", PlaceholderText = "Distance",
+    BackgroundColor3 = Color3.fromRGB(50,50,60),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.Gotham,
+    TextSize = 12, BorderSizePixel = 0, Parent = mainContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,6), Parent = reachInput})
+
+create("TextLabel", {
+    Size = UDim2.new(0.8,0,0,20), Position = UDim2.new(0.1,0,0,160),
+    Text = "AUTO CLICKER", BackgroundTransparency = 1,
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, Parent = mainContent
+})
+
+local autoBtn = create("TextButton", {
+    Size = UDim2.new(0.8,0,0,35), Position = UDim2.new(0.1,0,0,180),
+    Text = "OFF", BackgroundColor3 = Color3.fromRGB(255,85,85),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0, Parent = mainContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,6), Parent = autoBtn})
+
+local settingsContent = create("Frame", {
+    Size = UDim2.new(1,0,1,-75), Position = UDim2.new(0,0,0,75),
+    BackgroundTransparency = 1, Visible = false, Parent = frame
+})
+
+create("TextLabel", {
+    Size = UDim2.new(0.8,0,0,30), Position = UDim2.new(0.1,0,0,10),
+    Text = "COLOR THEME", BackgroundTransparency = 1,
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 14, Parent = settingsContent
+})
+
+local colorText = create("TextLabel", {
+    Size = UDim2.new(0.8,0,0,25), Position = UDim2.new(0.1,0,0,45),
+    Text = "Black to Dark Blue", BackgroundTransparency = 1,
+    TextColor3 = Color3.fromRGB(200,200,200), Font = Enum.Font.Gotham,
+    TextSize = 12, Parent = settingsContent
+})
+
+local colorBtn = create("TextButton", {
+    Size = UDim2.new(0.8,0,0,40), Position = UDim2.new(0.1,0,0,80),
+    Text = "CHANGE THEME", BackgroundColor3 = Color3.fromRGB(70,70,90),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 14, BorderSizePixel = 0, Parent = settingsContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,10), Parent = colorBtn})
+
+local hideBtn = create("TextButton", {
+    Size = UDim2.new(0.8,0,0,40), Position = UDim2.new(0.1,0,0,130),
+    Text = "HIDE GUI (MOBILE)", BackgroundColor3 = Color3.fromRGB(70,70,90),
+    TextColor3 = Color3.new(1,1,1), Font = Enum.Font.GothamBold,
+    TextSize = 13, BorderSizePixel = 0, Parent = settingsContent
+})
+create("UICorner", {CornerRadius = UDim.new(0,10), Parent = hideBtn})
+
+local themes = {
+    {name = "Dark Blue to Purple", c1 = Color3.fromRGB(20,20,60), c2 = Color3.fromRGB(50,20,80)},
+    {name = "Dark Purple to Red", c1 = Color3.fromRGB(40,10,50), c2 = Color3.fromRGB(60,10,30)},
+    {name = "Dark Red to Orange", c1 = Color3.fromRGB(50,10,10), c2 = Color3.fromRGB(70,30,10)},
+    {name = "Dark Green to Teal", c1 = Color3.fromRGB(10,40,30), c2 = Color3.fromRGB(10,50,50)},
+    {name = "Black to Dark Blue", c1 = Color3.fromRGB(0,0,0), c2 = Color3.fromRGB(20,30,60)},
+    {name = "Dark Grey to Purple", c1 = Color3.fromRGB(30,30,35), c2 = Color3.fromRGB(50,30,60)}
+}
+local themeIndex = 1
+
+local function stopAllTweens()
+    for _, tween in pairs(activeTweens) do
+        tween:Cancel()
+    end
+    activeTweens = {}
+end
+
+local function animateGradient()
+    stopAllTweens()
+    local theme = themes[themeIndex]
+    local info = TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+    
+    local elements = {title, openBtn, frame, mainTab, settingsTab, teleportBtn, reachBtn, autoBtn, colorBtn, hideBtn}
+    
+    for _, element in pairs(elements) do
+        element.BackgroundColor3 = theme.c1
+        local tween = TweenService:Create(element, info, {BackgroundColor3 = theme.c2})
+        tween:Play()
+        table.insert(activeTweens, tween)
+    end
+end
+
+spawn(function()
+    wait(0.3)
+    animateGradient()
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    guiOpen = not guiOpen
+    frame.Visible = guiOpen
+    openBtn.Text = guiOpen and "CLOSE" or "OPEN"
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+        gui.Enabled = not gui.Enabled
+    end
+end)
+
+mainTab.MouseButton1Click:Connect(function()
+    mainContent.Visible = true
+    settingsContent.Visible = false
+    mainTab.BackgroundColor3 = Color3.fromRGB(85,255,85)
+    settingsTab.BackgroundColor3 = Color3.fromRGB(60,60,70)
+end)
+
+settingsTab.MouseButton1Click:Connect(function()
+    mainContent.Visible = false
+    settingsContent.Visible = true
+    mainTab.BackgroundColor3 = Color3.fromRGB(60,60,70)
+    settingsTab.BackgroundColor3 = Color3.fromRGB(85,255,85)
+end)
+
+colorBtn.MouseButton1Click:Connect(function()
+    themeIndex = themeIndex % #themes + 1
+    colorText.Text = themes[themeIndex].name
+    animateGradient()
+end)
+
+hideBtn.MouseButton1Click:Connect(function()
+    gui.Enabled = false
+end)
+
+local dragging, dragStart, startPos
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+local function getNextPlayer()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local h = p.Character:FindFirstChild("Humanoid")
+            if h and h.Health > 0 then
+                return p
+            end
+        end
+    end
+    return nil
+end
+
+teleportBtn.MouseButton1Click:Connect(function()
+    teleportEnabled = not teleportEnabled
+    teleportBtn.Text = teleportEnabled and "STOP TELEPORT" or "START TELEPORT"
+    teleportBtn.BackgroundColor3 = teleportEnabled and Color3.fromRGB(85,255,85) or Color3.fromRGB(255,85,85)
+    
+    if teleportEnabled then
+        spawn(function()
+            while teleportEnabled do
+                currentTarget = getNextPlayer()
+                if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetPos = currentTarget.Character.HumanoidRootPart.CFrame
+                    hrp.CFrame = targetPos * CFrame.new(0,0,5)
+                end
+                wait(0.1)
+            end
+        end)
+    end
+end)
+
+local function extendReach()
+    if not character then return end
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        local handle = tool.Handle
+        if not originalSizes[handle] then
+            originalSizes[handle] = handle.Size
+        end
+        handle.Size = Vector3.new(reachDistance*2, reachDistance*2, reachDistance*2)
+        handle.Massless = true
+        handle.CanCollide = false
+    end
+end
+
+local function restoreReach()
+    if not character then return end
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        local handle = tool.Handle
+        if originalSizes[handle] then
+            handle.Size = originalSizes[handle]
+            handle.Transparency = 0
+        end
+    end
+end
+
+reachBtn.MouseButton1Click:Connect(function()
+    reachEnabled = not reachEnabled
+    reachBtn.Text = reachEnabled and "ON" or "OFF"
+    reachBtn.BackgroundColor3 = reachEnabled and Color3.fromRGB(85,255,85) or Color3.fromRGB(255,85,85)
+    
+    if reachEnabled then
+        if reachConnection then reachConnection:Disconnect() end
+        reachConnection = RunService.RenderStepped:Connect(function()
+            if reachEnabled then
+                extendReach()
+            end
+        end)
+    else
+        if reachConnection then
+            reachConnection:Disconnect()
+            reachConnection = nil
+        end
+        restoreReach()
+        originalSizes = {}
+    end
+end)
+
+reachInput.FocusLost:Connect(function()
+    local num = tonumber(reachInput.Text)
+    if num and num > 0 then
+        reachDistance = num
+    else
+        reachInput.Text = tostring(reachDistance)
+    end
+end)
+
+autoBtn.MouseButton1Click:Connect(function()
+    autoClickEnabled = not autoClickEnabled
+    autoBtn.Text = autoClickEnabled and "ON" or "OFF"
+    autoBtn.BackgroundColor3 = autoClickEnabled and Color3.fromRGB(85,255,85) or Color3.fromRGB(255,85,85)
+end)
+
+RunService.Heartbeat:Connect(function()
+    if autoClickEnabled and character then
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then tool:Activate() end
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    hrp = char:WaitForChild("HumanoidRootPart")
+    originalSizes = {}
+    if reachEnabled and reachConnection then
+        reachConnection:Disconnect()
+        reachConnection = RunService.RenderStepped:Connect(function()
+            if reachEnabled then extendReach() end
+        end)
+    end
+end)
