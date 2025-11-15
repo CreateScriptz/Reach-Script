@@ -1,0 +1,576 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local scriptEnabled = true
+local guiVisible = true
+local reachEnabled = false
+local autoClickerEnabled = false
+local reachDistance = 20
+
+local colorPresets = {
+    ["Red"] = Color3.fromRGB(220, 50, 50),
+    ["Midnight Blue"] = Color3.fromRGB(25, 25, 112),
+    ["Purple"] = Color3.fromRGB(138, 43, 226),
+    ["Emerald"] = Color3.fromRGB(46, 204, 113),
+    ["Orange"] = Color3.fromRGB(255, 140, 0),
+    ["Pink"] = Color3.fromRGB(255, 105, 180),
+    ["Crimson"] = Color3.fromRGB(220, 20, 60),
+    ["Ocean"] = Color3.fromRGB(0, 119, 190),
+    ["Gold"] = Color3.fromRGB(255, 215, 0),
+    ["Lime"] = Color3.fromRGB(50, 205, 50),
+    ["Magenta"] = Color3.fromRGB(199, 21, 133),
+    ["Cyan"] = Color3.fromRGB(0, 206, 209)
+}
+
+local currentTheme = "Midnight Blue"
+local rainbowEnabled = false
+local rainbowHue = 0
+local fadeEnabled = false
+local fadeColors = {}
+local fadeIndex = 1
+local fadeProgress = 0
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ReachGui"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+mainFrame.BackgroundColor3 = colorPresets[currentTheme]
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local shadow = Instance.new("ImageLabel")
+shadow.Name = "Shadow"
+shadow.BackgroundTransparency = 1
+shadow.Position = UDim2.new(0, -15, 0, -15)
+shadow.Size = UDim2.new(1, 30, 1, 30)
+shadow.ZIndex = 0
+shadow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(10, 10, 10, 10)
+shadow.Parent = mainFrame
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+titleBar.BackgroundTransparency = 0.3
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚔️ Reach & Auto Clicker"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 18
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+closeButton.Text = "✕"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 18
+closeButton.Font = Enum.Font.GothamBold
+closeButton.BorderSizePixel = 0
+closeButton.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+local tabContainer = Instance.new("Frame")
+tabContainer.Size = UDim2.new(1, 0, 0, 35)
+tabContainer.Position = UDim2.new(0, 0, 0, 45)
+tabContainer.BackgroundTransparency = 1
+tabContainer.Parent = mainFrame
+
+local mainTabButton = Instance.new("TextButton")
+mainTabButton.Name = "MainTab"
+mainTabButton.Size = UDim2.new(0.5, -5, 1, 0)
+mainTabButton.Position = UDim2.new(0, 5, 0, 0)
+mainTabButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+mainTabButton.BackgroundTransparency = 0.8
+mainTabButton.Text = "Main"
+mainTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+mainTabButton.TextSize = 16
+mainTabButton.Font = Enum.Font.GothamBold
+mainTabButton.BorderSizePixel = 0
+mainTabButton.Parent = tabContainer
+
+local mainTabCorner = Instance.new("UICorner")
+mainTabCorner.CornerRadius = UDim.new(0, 8)
+mainTabCorner.Parent = mainTabButton
+
+local settingsTabButton = Instance.new("TextButton")
+settingsTabButton.Name = "SettingsTab"
+settingsTabButton.Size = UDim2.new(0.5, -5, 1, 0)
+settingsTabButton.Position = UDim2.new(0.5, 0, 0, 0)
+settingsTabButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+settingsTabButton.BackgroundTransparency = 0.9
+settingsTabButton.Text = "Settings"
+settingsTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsTabButton.TextSize = 16
+settingsTabButton.Font = Enum.Font.Gotham
+settingsTabButton.BorderSizePixel = 0
+settingsTabButton.Parent = tabContainer
+
+local settingsTabCorner = Instance.new("UICorner")
+settingsTabCorner.CornerRadius = UDim.new(0, 8)
+settingsTabCorner.Parent = settingsTabButton
+
+local mainContent = Instance.new("Frame")
+mainContent.Name = "MainContent"
+mainContent.Size = UDim2.new(1, -20, 1, -95)
+mainContent.Position = UDim2.new(0, 10, 0, 85)
+mainContent.BackgroundTransparency = 1
+mainContent.Visible = true
+mainContent.Parent = mainFrame
+
+local reachToggle = Instance.new("TextButton")
+reachToggle.Size = UDim2.new(1, 0, 0, 45)
+reachToggle.Position = UDim2.new(0, 0, 0, 0)
+reachToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+reachToggle.BackgroundTransparency = 0.9
+reachToggle.Text = "🗡️ Sword Reach: OFF"
+reachToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+reachToggle.TextSize = 16
+reachToggle.Font = Enum.Font.GothamBold
+reachToggle.BorderSizePixel = 0
+reachToggle.Parent = mainContent
+
+local reachCorner = Instance.new("UICorner")
+reachCorner.CornerRadius = UDim.new(0, 8)
+reachCorner.Parent = reachToggle
+
+local reachSliderLabel = Instance.new("TextLabel")
+reachSliderLabel.Size = UDim2.new(1, 0, 0, 25)
+reachSliderLabel.Position = UDim2.new(0, 0, 0, 55)
+reachSliderLabel.BackgroundTransparency = 1
+reachSliderLabel.Text = "Reach Distance: 20"
+reachSliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+reachSliderLabel.TextSize = 14
+reachSliderLabel.Font = Enum.Font.Gotham
+reachSliderLabel.Parent = mainContent
+
+local reachSlider = Instance.new("Frame")
+reachSlider.Size = UDim2.new(1, 0, 0, 20)
+reachSlider.Position = UDim2.new(0, 0, 0, 85)
+reachSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+reachSlider.BackgroundTransparency = 0.9
+reachSlider.BorderSizePixel = 0
+reachSlider.Parent = mainContent
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(0, 10)
+sliderCorner.Parent = reachSlider
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new((20-1)/49, 0, 1, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = reachSlider
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(0, 10)
+fillCorner.Parent = sliderFill
+
+local autoClickerToggle = Instance.new("TextButton")
+autoClickerToggle.Size = UDim2.new(1, 0, 0, 45)
+autoClickerToggle.Position = UDim2.new(0, 0, 0, 115)
+autoClickerToggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+autoClickerToggle.BackgroundTransparency = 0.9
+autoClickerToggle.Text = "🖱️ Auto Clicker: OFF"
+autoClickerToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoClickerToggle.TextSize = 16
+autoClickerToggle.Font = Enum.Font.GothamBold
+autoClickerToggle.BorderSizePixel = 0
+autoClickerToggle.Parent = mainContent
+
+local clickerCorner = Instance.new("UICorner")
+clickerCorner.CornerRadius = UDim.new(0, 8)
+clickerCorner.Parent = autoClickerToggle
+
+local settingsContent = Instance.new("ScrollingFrame")
+settingsContent.Name = "SettingsContent"
+settingsContent.Size = UDim2.new(1, -20, 1, -95)
+settingsContent.Position = UDim2.new(0, 10, 0, 85)
+settingsContent.BackgroundTransparency = 1
+settingsContent.ScrollBarThickness = 6
+settingsContent.Visible = false
+settingsContent.CanvasSize = UDim2.new(0, 0, 0, 700)
+settingsContent.BorderSizePixel = 0
+settingsContent.Parent = mainFrame
+
+local yPos = 0
+for colorName, colorValue in pairs(colorPresets) do
+    local colorButton = Instance.new("TextButton")
+    colorButton.Size = UDim2.new(1, 0, 0, 40)
+    colorButton.Position = UDim2.new(0, 0, 0, yPos)
+    colorButton.BackgroundColor3 = colorValue
+    colorButton.Text = colorName
+    colorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    colorButton.TextSize = 16
+    colorButton.Font = Enum.Font.GothamBold
+    colorButton.BorderSizePixel = 0
+    colorButton.Parent = settingsContent
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = colorButton
+    
+    colorButton.MouseButton1Click:Connect(function()
+        currentTheme = colorName
+        rainbowEnabled = false
+        fadeEnabled = false
+        mainFrame.BackgroundColor3 = colorValue
+        openButton.BackgroundColor3 = colorValue
+    end)
+    
+    yPos = yPos + 50
+end
+
+local rainbowToggle = Instance.new("TextButton")
+rainbowToggle.Size = UDim2.new(1, 0, 0, 40)
+rainbowToggle.Position = UDim2.new(0, 0, 0, yPos)
+rainbowToggle.BackgroundColor3 = Color3.fromHSV(0, 1, 1)
+rainbowToggle.Text = "🌈 Rainbow Mode"
+rainbowToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+rainbowToggle.TextSize = 16
+rainbowToggle.Font = Enum.Font.GothamBold
+rainbowToggle.BorderSizePixel = 0
+rainbowToggle.Parent = settingsContent
+
+local rainbowCorner = Instance.new("UICorner")
+rainbowCorner.CornerRadius = UDim.new(0, 8)
+rainbowCorner.Parent = rainbowToggle
+
+yPos = yPos + 50
+
+local hideGuiButton = Instance.new("TextButton")
+hideGuiButton.Size = UDim2.new(1, 0, 0, 40)
+hideGuiButton.Position = UDim2.new(0, 0, 0, yPos)
+hideGuiButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+hideGuiButton.Text = "👁️ Hide GUI"
+hideGuiButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+hideGuiButton.TextSize = 16
+hideGuiButton.Font = Enum.Font.GothamBold
+hideGuiButton.BorderSizePixel = 0
+hideGuiButton.Parent = settingsContent
+
+local hideCorner = Instance.new("UICorner")
+hideCorner.CornerRadius = UDim.new(0, 8)
+hideCorner.Parent = hideGuiButton
+
+yPos = yPos + 50
+
+local killScriptButton = Instance.new("TextButton")
+killScriptButton.Size = UDim2.new(1, 0, 0, 40)
+killScriptButton.Position = UDim2.new(0, 0, 0, yPos)
+killScriptButton.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+killScriptButton.Text = "💀 Kill Script"
+killScriptButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+killScriptButton.TextSize = 16
+killScriptButton.Font = Enum.Font.GothamBold
+killScriptButton.BorderSizePixel = 0
+killScriptButton.Parent = settingsContent
+
+local killCorner = Instance.new("UICorner")
+killCorner.CornerRadius = UDim.new(0, 8)
+killCorner.Parent = killScriptButton
+
+local dragging = false
+local dragInput, mousePos, framePos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        local delta = dragInput.Position - mousePos
+        mainFrame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+    end
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    guiVisible = false
+end)
+
+local openButton = Instance.new("TextButton")
+openButton.Name = "OpenButton"
+openButton.Size = UDim2.new(0, 50, 0, 50)
+openButton.Position = UDim2.new(0, 10, 0.5, -25)
+openButton.BackgroundColor3 = colorPresets[currentTheme]
+openButton.Text = "⚔️"
+openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+openButton.TextSize = 24
+openButton.Font = Enum.Font.GothamBold
+openButton.BorderSizePixel = 0
+openButton.Visible = false
+openButton.Parent = screenGui
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 25)
+openCorner.Parent = openButton
+
+openButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    guiVisible = true
+    openButton.Visible = false
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    openButton.Visible = true
+end)
+
+mainTabButton.MouseButton1Click:Connect(function()
+    mainContent.Visible = true
+    settingsContent.Visible = false
+    mainTabButton.BackgroundTransparency = 0.8
+    mainTabButton.Font = Enum.Font.GothamBold
+    settingsTabButton.BackgroundTransparency = 0.9
+    settingsTabButton.Font = Enum.Font.Gotham
+end)
+
+settingsTabButton.MouseButton1Click:Connect(function()
+    mainContent.Visible = false
+    settingsContent.Visible = true
+    mainTabButton.BackgroundTransparency = 0.9
+    mainTabButton.Font = Enum.Font.Gotham
+    settingsTabButton.BackgroundTransparency = 0.8
+    settingsTabButton.Font = Enum.Font.GothamBold
+end)
+
+reachToggle.MouseButton1Click:Connect(function()
+    if scriptEnabled then
+        reachEnabled = not reachEnabled
+        reachToggle.Text = reachEnabled and "🗡️ Sword Reach: ON" or "🗡️ Sword Reach: OFF"
+        reachToggle.BackgroundTransparency = reachEnabled and 0.7 or 0.9
+    end
+end)
+
+autoClickerToggle.MouseButton1Click:Connect(function()
+    if scriptEnabled then
+        autoClickerEnabled = not autoClickerEnabled
+        autoClickerToggle.Text = autoClickerEnabled and "🖱️ Auto Clicker: ON" or "🖱️ Auto Clicker: OFF"
+        autoClickerToggle.BackgroundTransparency = autoClickerEnabled and 0.7 or 0.9
+    end
+end)
+
+rainbowToggle.MouseButton1Click:Connect(function()
+    rainbowEnabled = not rainbowEnabled
+    fadeEnabled = false
+end)
+
+yPos = yPos + 50
+
+local fadeToggle = Instance.new("TextButton")
+fadeToggle.Size = UDim2.new(1, 0, 0, 40)
+fadeToggle.Position = UDim2.new(0, 0, 0, yPos)
+fadeToggle.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+fadeToggle.Text = "✨ Fade Mode"
+fadeToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+fadeToggle.TextSize = 16
+fadeToggle.Font = Enum.Font.GothamBold
+fadeToggle.BorderSizePixel = 0
+fadeToggle.Parent = settingsContent
+
+local fadeCorner = Instance.new("UICorner")
+fadeCorner.CornerRadius = UDim.new(0, 8)
+fadeCorner.Parent = fadeToggle
+
+fadeToggle.MouseButton1Click:Connect(function()
+    fadeEnabled = not fadeEnabled
+    rainbowEnabled = false
+    if fadeEnabled then
+        fadeColors = {
+            Color3.fromRGB(220, 50, 50),
+            Color3.fromRGB(138, 43, 226),
+            Color3.fromRGB(0, 119, 190),
+            Color3.fromRGB(46, 204, 113)
+        }
+        fadeIndex = 1
+        fadeProgress = 0
+    end
+end)
+
+hideGuiButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openButton.Visible = true
+    guiVisible = false
+end)
+
+killScriptButton.MouseButton1Click:Connect(function()
+    scriptEnabled = false
+    reachEnabled = false
+    autoClickerEnabled = false
+    screenGui:Destroy()
+end)
+
+local draggingSlider = false
+
+local function updateSlider(inputPos)
+    local mousePos = inputPos or UserInputService:GetMouseLocation().X
+    local sliderPos = reachSlider.AbsolutePosition.X
+    local sliderSize = reachSlider.AbsoluteSize.X
+    local relativePos = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
+    
+    reachDistance = math.floor(1 + (relativePos * 49))
+    sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+    reachSliderLabel.Text = "Reach Distance: " .. reachDistance
+end
+
+reachSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingSlider = true
+        updateSlider(input.Position.X)
+    end
+end)
+
+reachSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingSlider = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSlider(input.Position.X)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingSlider = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if rainbowEnabled then
+        rainbowHue = (rainbowHue + 0.001) % 1
+        local rainbowColor = Color3.fromHSV(rainbowHue, 0.8, 0.9)
+        mainFrame.BackgroundColor3 = rainbowColor
+        openButton.BackgroundColor3 = rainbowColor
+    elseif fadeEnabled then
+        fadeProgress = fadeProgress + 0.002
+        
+        if fadeProgress >= 1 then
+            fadeProgress = 0
+            fadeIndex = fadeIndex + 1
+            if fadeIndex > #fadeColors then
+                fadeIndex = 1
+            end
+        end
+        
+        local nextIndex = fadeIndex + 1
+        if nextIndex > #fadeColors then
+            nextIndex = 1
+        end
+        
+        local currentColor = fadeColors[fadeIndex]
+        local nextColor = fadeColors[nextIndex]
+        local fadedColor = currentColor:Lerp(nextColor, fadeProgress)
+        
+        mainFrame.BackgroundColor3 = fadedColor
+        openButton.BackgroundColor3 = fadedColor
+    end
+end)
+
+local originalSizes = {}
+local originalCanCollide = {}
+RunService.RenderStepped:Connect(function()
+    if scriptEnabled then
+        local character = player.Character
+        if character then
+            for _, tool in pairs(character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local handle = tool:FindFirstChild("Handle")
+                    if handle and handle:IsA("BasePart") then
+                        if not originalSizes[handle] then
+                            originalSizes[handle] = handle.Size
+                            originalCanCollide[handle] = handle.CanCollide
+                        end
+                        
+                        if reachEnabled then
+                            handle.Size = Vector3.new(originalSizes[handle].X, originalSizes[handle].Y, reachDistance)
+                            handle.CanCollide = false
+                            handle.Massless = true
+                        else
+                            handle.Size = originalSizes[handle]
+                            handle.CanCollide = originalCanCollide[handle]
+                            handle.Massless = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if scriptEnabled and autoClickerEnabled then
+        local character = player.Character
+        if character then
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool then
+                tool:Activate()
+            end
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then
+        if scriptEnabled then
+            guiVisible = not guiVisible
+            mainFrame.Visible = guiVisible
+            openButton.Visible = not guiVisible
+        end
+    end
+end)
+
+print("Reach & Auto Clicker Script Loaded!")
